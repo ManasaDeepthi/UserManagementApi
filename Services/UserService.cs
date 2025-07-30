@@ -5,7 +5,7 @@ namespace UserManagementApi.Services
 {
     public class UserService
     {
-        private readonly string _filePath = "users.json";
+        private readonly string _filePath = Path.Combine("DataFile", "users.json");
         private List<User> _users = new();
 
         public UserService()
@@ -15,17 +15,36 @@ namespace UserManagementApi.Services
 
         private void LoadData()
         {
-            if (File.Exists(_filePath))
+            try
             {
-                var json = File.ReadAllText(_filePath);
-                _users = JsonSerializer.Deserialize<List<User>>(json) ?? new List<User>();
+                if (File.Exists(_filePath))
+                {
+                    var json = File.ReadAllText(_filePath);
+                   // _users = JsonSerializer.Deserialize<List<User>>(json) ?? new List<User>();
+                    var options = new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    };
+                    _users = JsonSerializer.Deserialize<List<User>>(json, options) ?? new List<User>();
+                }
+                else
+                {
+                    using var client = new HttpClient();
+                    var json = client.GetStringAsync("https://jsonplaceholder.typicode.com/users")
+                                     .GetAwaiter().GetResult();
+                    var options = new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    };
+                    _users = JsonSerializer.Deserialize<List<User>>(json, options) ?? new List<User>();
+                    SaveData();
+                }
             }
-            else
+            catch (Exception ex)
             {
-                using var client = new HttpClient();
-                var json = client.GetStringAsync("https://jsonplaceholder.typicode.com/users").Result;
-                _users = JsonSerializer.Deserialize<List<User>>(json) ?? new List<User>();
-                SaveData();
+                // Log or handle the error as needed
+                Console.WriteLine($"Error loading user data: {ex.Message}");
+                _users = new List<User>();
             }
         }
 
